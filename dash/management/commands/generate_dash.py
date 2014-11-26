@@ -1,12 +1,15 @@
 import tempfile
 import os
 import sqlite3
+import re
 from shutil import rmtree
 
 from django.core.management.base import BaseCommand
 from django.core.urlresolvers import reverse
 from django.http import HttpRequest
 from sphinx.ext.intersphinx import fetch_inventory
+
+from bs4 import BeautifulSoup
 
 from cbv.models import Klass, ProjectVersion
 from cbv.views import VersionDetailView, ModuleDetailView, KlassDetailView
@@ -18,13 +21,23 @@ class Command(BaseCommand):
     # versions of Django which are supported by CCBV
     django_versions = ProjectVersion.objects.all()
 
+    def fix_html(self, content):
+        """ Fixes relative paths in the HTML, removes navbar, fixes static files """
+
+        content = content.replace('/projects/Django/1.7/', '')
+
+        content = re.sub(r'href="(?!http:)', 'href="../', content)
+
+        soup = BeautifulSoup(content)
+        [nav.extract() for nav in soup.findAll('div', {'class': 'navbar'})]
+        content = soup.prettify()
+
+        return content
+
     def handle(self, *args, **options):
         work_dir = os.path.join(tempfile.gettempdir(), 'django-dash')
         rmtree(work_dir, ignore_errors=True)
         os.mkdir(work_dir)
-
-        print work_dir
-        
 
         fake_request = HttpRequest()
         fake_request.method = 'GET'
@@ -77,7 +90,7 @@ class Command(BaseCommand):
                 content.render()
 
                 with open(os.path.join(module_dir, 'index.html'), 'w') as f:
-                    f.write(content.content)
+                    f.write(self.fix_html(content.content))
 
                 cursor.execute('INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, "Module", ?);', (module.name, os.path.join(module.name, 'index.html')))
 
@@ -92,7 +105,7 @@ class Command(BaseCommand):
                     content.render()
 
                     with open(os.path.join(klass_dir, 'index.html'), 'w') as f:
-                        f.write(content.content)
+                        f.write(self.fix_html(content.content))
 
                     cursor.execute('INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, "Class", ?);', (klass.name, os.path.join(module.name, klass.name, 'index.html')))
 
