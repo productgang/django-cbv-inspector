@@ -125,6 +125,7 @@ TEMPLATE_DIRS = (
 
 INSTALLED_APPS = (
     'cbv',
+    'dash',
 
     'django_extensions',
     'gunicorn',
