@@ -57,7 +57,7 @@ class Command(BaseCommand):
 
         for version in self.django_versions:
             # Version detail
-            version_dir_base = os.path.join(work_dir, '%s.docset' % version.version_number)
+            version_dir_base = os.path.join(work_dir, 'Django-CBV-%s.docset' % version.version_number)
             version_dir = os.path.join(version_dir_base, 'Contents', 'Resources', 'Documents')
             os.makedirs(version_dir)
 
@@ -79,6 +79,8 @@ class Command(BaseCommand):
     <true/>
     <key>DashDocSetFamily</key>
     <string>dashtoc</string>
+    <key>isJavaScriptEnabled</key>
+    <true/>
 </dict>
 </plist>''' % (version.version_number, version.version_number))
 
