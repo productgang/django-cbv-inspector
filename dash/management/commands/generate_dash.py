@@ -2,7 +2,7 @@ import tempfile
 import os
 import sqlite3
 import re
-from shutil import rmtree
+from shutil import rmtree, copytree
 
 from django.core.management.base import BaseCommand
 from django.core.urlresolvers import reverse
@@ -21,12 +21,16 @@ class Command(BaseCommand):
     # versions of Django which are supported by CCBV
     django_versions = ProjectVersion.objects.all()
 
-    def fix_html(self, content):
+    def fix_html(self, content, level=1):
         """ Fixes relative paths in the HTML, removes navbar, fixes static files """
 
         content = content.replace('/projects/Django/1.7/', '')
 
-        content = re.sub(r'href="(?!http:)', 'href="../', content)
+        content = re.sub(r'href="(?!http)', 'href="%s' % (''.join(['../']*level)), content)
+
+        content = content.replace('https://None.s3.amazonaws.com', ''.join(['../'] * level) + 'static')
+
+        #content = re.sub(r'\.\.\/django\.[\w\.]+\/(?!")', '../..', content)
 
         soup = BeautifulSoup(content)
         [nav.extract() for nav in soup.findAll('div', {'class': 'navbar'})]
@@ -47,6 +51,8 @@ class Command(BaseCommand):
             version_dir_base = os.path.join(work_dir, '%s.docset' % version.version_number)
             version_dir = os.path.join(version_dir_base, 'Contents', 'Resources', 'Documents')
             os.makedirs(version_dir)
+
+            copytree(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..', '..', 'cbv', 'static'), os.path.join(version_dir, 'static'))
 
             # Generate plist file
             with open(os.path.join(version_dir_base, 'Contents', 'Info.plist'), 'w') as f:
@@ -105,7 +111,7 @@ class Command(BaseCommand):
                     content.render()
 
                     with open(os.path.join(klass_dir, 'index.html'), 'w') as f:
-                        f.write(self.fix_html(content.content))
+                        f.write(self.fix_html(content.content, level=2))
 
                     cursor.execute('INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, "Class", ?);', (klass.name, os.path.join(module.name, klass.name, 'index.html')))
 
