@@ -24,16 +24,25 @@ class Command(BaseCommand):
     def fix_html(self, content, level=1):
         """ Fixes relative paths in the HTML, removes navbar, fixes static files """
 
+        # fix relative paths
         content = content.replace('/projects/Django/1.7/', '')
-
         content = re.sub(r'href="(?!http)', 'href="%s' % (''.join(['../']*level)), content)
 
+        # fix static files
         content = content.replace('https://None.s3.amazonaws.com', ''.join(['../'] * level) + 'static')
 
-        #content = re.sub(r'\.\.\/django\.[\w\.]+\/(?!")', '../..', content)
-
         soup = BeautifulSoup(content)
+
+        # remove navbar
         [nav.extract() for nav in soup.findAll('div', {'class': 'navbar'})]
+
+        # build the table of contents
+        for method in soup.findAll('div', {'class': 'accordion-body'}):
+            anchor = soup.new_tag('a')
+            anchor['name'] = '//apple_ref/cpp/Method/%s' % method['id']
+            anchor['class'] = 'dashAnchor'
+            method.insert_before(anchor)
+
         content = soup.prettify()
 
         return content
@@ -68,6 +77,8 @@ class Command(BaseCommand):
     <string>django-cbv</string>
     <key>isDashDocset</key>
     <true/>
+    <key>DashDocSetFamily</key>
+    <string>dashtoc</string>
 </dict>
 </plist>''' % (version.version_number, version.version_number))
 
