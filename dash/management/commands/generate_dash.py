@@ -30,8 +30,26 @@ class Command(BaseCommand):
 
         for version in self.django_versions:
             # Version detail
-            version_dir = os.path.join(work_dir, version.version_number)
-            os.mkdir(version_dir)
+            version_dir_base = os.path.join(work_dir, '%s.docset' % version.version_number)
+            version_dir = os.path.join(version_dir_base, 'Contents', 'Resources', 'Documents')
+            os.makedirs(version_dir)
+
+            # Generate plist file
+            with open(os.path.join(version_dir_base, 'Contents', 'Info.plist'), 'w') as f:
+                f.write('''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>django-%s-cbv</string>
+    <key>CFBundleName</key>
+    <string>Django %s CBV</string>
+    <key>DocSetPlatformFamily</key>
+    <string>django-cbv</string>
+    <key>isDashDocset</key>
+    <true/>
+</dict>
+</plist>''' % (version.version_number, version.version_number))
 
             kwargs = {'package': 'Django', 'version': version.version_number}
             url = reverse('version-detail', kwargs=kwargs)
