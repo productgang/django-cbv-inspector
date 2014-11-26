@@ -1,5 +1,6 @@
 import tempfile
 import os
+import sqlite3
 from shutil import rmtree
 
 from django.core.management.base import BaseCommand
@@ -51,6 +52,12 @@ class Command(BaseCommand):
 </dict>
 </plist>''' % (version.version_number, version.version_number))
 
+            database = sqlite3.connect(os.path.join(version_dir_base, 'Contents', 'Resources', 'docSet.dsidx'))
+            cursor = database.cursor()
+
+            cursor.execute('CREATE TABLE searchIndex(id INTEGER PRIMARY KEY, name TEXT, type TEXT, path TEXT);')
+            cursor.execute('CREATE UNIQUE INDEX anchor ON searchIndex (name, type, path);')
+
             kwargs = {'package': 'Django', 'version': version.version_number}
             url = reverse('version-detail', kwargs=kwargs)
             content = VersionDetailView.as_view()(fake_request, **kwargs)
@@ -72,6 +79,8 @@ class Command(BaseCommand):
                 with open(os.path.join(module_dir, 'index.html'), 'w') as f:
                     f.write(content.content)
 
+                cursor.execute('INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, "Module", ?);', (module.name, os.path.join(module.name, 'index.html')))
+
                 for klass in module.klass_set.all():
                     # Klass/Class detail
                     klass_dir = os.path.join(module_dir, klass.name)
@@ -85,4 +94,9 @@ class Command(BaseCommand):
                     with open(os.path.join(klass_dir, 'index.html'), 'w') as f:
                         f.write(content.content)
 
+                    cursor.execute('INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, "Class", ?);', (klass.name, os.path.join(module.name, klass.name, 'index.html')))
+
                     del kwargs['klass']
+
+            database.commit()
+            database.close()
