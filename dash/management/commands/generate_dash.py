@@ -2,6 +2,7 @@ import tempfile
 import os
 import sqlite3
 import re
+import tarfile
 from shutil import rmtree, copytree
 
 from django.core.management.base import BaseCommand
@@ -132,3 +133,10 @@ class Command(BaseCommand):
 
             database.commit()
             database.close()
+
+            # Generate final Dash docset archive
+            archive_filename = os.path.join(work_dir, 'Django-CBV-%s.tgz' % version.version_number)
+            with tarfile.open(archive_filename, "w:gz") as tar:
+                tar.add(version_dir_base, arcname=os.path.basename(version_dir_base), filter=lambda f: None if f.name == '.DS_Store' else f)
+
+            print 'Dash docset for version %s is at %s' % (version.version_number, archive_filename)
