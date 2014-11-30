@@ -4,6 +4,7 @@ import sqlite3
 import re
 import tarfile
 from shutil import rmtree, copytree
+from optparse import make_option
 
 from django.core.management.base import BaseCommand
 from django.core.urlresolvers import reverse
@@ -17,8 +18,16 @@ from cbv.views import VersionDetailView, ModuleDetailView, KlassDetailView
 
 
 class Command(BaseCommand):
-    args = ''
     help = 'Generates the Dash Docsets'
+
+    option_list = BaseCommand.option_list + (
+            make_option('--latest',
+                action='store_true',
+                dest='latest',
+                default=False,
+                help='Only generate the docset for the latest version of Django. Needed for the official Dash docset repository.'),
+            )
+
     # versions of Django which are supported by CCBV
     django_versions = ProjectVersion.objects.all()
 
@@ -56,9 +65,14 @@ class Command(BaseCommand):
         fake_request = HttpRequest()
         fake_request.method = 'GET'
 
+        latest = options['latest']
+
+        if latest:
+            self.django_versions = self.django_versions[:1]
+
         for version in self.django_versions:
             # Version detail
-            version_dir_base = os.path.join(work_dir, 'Django-CBV-%s.docset' % version.version_number)
+            version_dir_base = os.path.join(work_dir, 'Django-CBV%s.docset' % ('-' + version.version_number if not latest else ''))
             version_dir = os.path.join(version_dir_base, 'Contents', 'Resources', 'Documents')
             os.makedirs(version_dir)
 
@@ -71,9 +85,9 @@ class Command(BaseCommand):
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>django-%s-cbv</string>
+    <string>django%s-cbv</string>
     <key>CFBundleName</key>
-    <string>Django %s CBV</string>
+    <string>Django%s CBV</string>
     <key>DocSetPlatformFamily</key>
     <string>django-cbv</string>
     <key>isDashDocset</key>
@@ -83,7 +97,7 @@ class Command(BaseCommand):
     <key>isJavaScriptEnabled</key>
     <true/>
 </dict>
-</plist>''' % (version.version_number, version.version_number))
+</plist>''' % ('-' + version.version_number if not latest else '', ' ' + version.version_number if not latest else ''))
 
             database = sqlite3.connect(os.path.join(version_dir_base, 'Contents', 'Resources', 'docSet.dsidx'))
             cursor = database.cursor()
@@ -135,7 +149,7 @@ class Command(BaseCommand):
             database.close()
 
             # Generate final Dash docset archive
-            archive_filename = os.path.join(work_dir, 'Django-CBV-%s.tgz' % version.version_number)
+            archive_filename = os.path.join(work_dir, 'Django-CBV%s.tgz' % ('-' + version.version_number if not latest else ''))
             with tarfile.open(archive_filename, "w:gz") as tar:
                 tar.add(version_dir_base, arcname=os.path.basename(version_dir_base), filter=lambda f: None if f.name == '.DS_Store' else f)
 
