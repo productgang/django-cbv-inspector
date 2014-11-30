@@ -21,11 +21,11 @@ class Command(BaseCommand):
     # versions of Django which are supported by CCBV
     django_versions = ProjectVersion.objects.all()
 
-    def fix_html(self, content, level=1):
+    def fix_html(self, content, level=1, version='1.7'):
         """ Fixes relative paths in the HTML, removes navbar, fixes static files """
 
         # fix relative paths
-        content = content.replace('/projects/Django/1.7/', '')
+        content = content.replace('/projects/Django/%s/' % version, '')
         content = re.sub(r'href="(?!http)', 'href="%s' % (''.join(['../']*level)), content)
 
         # fix static files
@@ -109,7 +109,7 @@ class Command(BaseCommand):
                 content.render()
 
                 with open(os.path.join(module_dir, 'index.html'), 'w') as f:
-                    f.write(self.fix_html(content.content))
+                    f.write(self.fix_html(content.content, version=version.version_number))
 
                 cursor.execute('INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, "Module", ?);', (module.name, os.path.join(module.name, 'index.html')))
 
@@ -124,7 +124,7 @@ class Command(BaseCommand):
                     content.render()
 
                     with open(os.path.join(klass_dir, 'index.html'), 'w') as f:
-                        f.write(self.fix_html(content.content, level=2))
+                        f.write(self.fix_html(content.content, level=2, version=version.version_number))
 
                     cursor.execute('INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES (?, "Class", ?);', (klass.name, os.path.join(module.name, klass.name, 'index.html')))
 
